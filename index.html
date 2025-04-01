@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>عربة التسوق</title>
+  <style>
+    body { direction: rtl; font-family: Arial; padding: 20px; background-color: #f0f0f0; }
+    .product { background: #fff; border-radius: 12px; padding: 16px; margin: 10px; width: 250px; display: inline-block; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .product img { width: 100%; border-radius: 8px; }
+    .product button { background: green; color: white; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; margin-top: 5px; }
+    #cart { margin-bottom: 30px; background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+    #cart p { margin: 5px 0; }
+    #cart button { background: blue; margin-top: 15px; }
+    #searchBar { margin-bottom: 20px; }
+    #searchInput { width: 100%; padding: 10px; font-size: 16px; border-radius: 8px; border: 1px solid #ccc; }
+    .remove-btn { color: red; background: none; border: none; cursor: pointer; font-size: 16px; margin-right: 10px; }
+    .category-title { font-size: 20px; margin-top: 30px; font-weight: bold; color: #333; }
+  </style>
+</head>
+<body>
+  <div id="searchBar">
+    <input type="text" id="searchInput" placeholder="ابحث عن منتج..." oninput="filterProducts()">
+  </div>
+
+  <div id="cart" style="display:none;">
+    <h3>🧾 الفاتورة:</h3>
+    <div id="cart-items"></div>
+    <p><strong>المجموع بدون ضريبة:</strong> <span id="subtotal">0</span> ₪</p>
+    <p><strong>الضريبة (18%):</strong> <span id="tax">0</span> ₪</p>
+    <p><strong>المجموع الكلي:</strong> <span id="total">0</span> ₪</p>
+    <button onclick="printInvoice()">🖨️ طباعة / تحميل PDF</button>
+    <button onclick="confirmOrder()">✔️ تأكيد الطلب</button>
+  </div>
+
+  <h2>🛒 المنتجات المتوفرة</h2>
+  <div id="products"></div>
+
+  <script>
+    let cart = [];
+    let allProducts = [];
+
+    function renderProducts(products) {
+      allProducts = products;
+      displayProductsByCategory(products);
+    }
+
+    function displayProductsByCategory(products) {
+      const container = document.getElementById("products");
+      container.innerHTML = "";
+      const categories = {};
+
+      products.forEach(product => {
+        if (!categories[product.name]) {
+          categories[product.name] = [];
+        }
+        categories[product.name].push(product);
+      });
+
+      Object.keys(categories).forEach(category => {
+        const catHeader = document.createElement("div");
+        catHeader.className = "category-title";
+        catHeader.textContent = category;
+        container.appendChild(catHeader);
+
+        categories[category].forEach(product => {
+          const div = document.createElement("div");
+          div.className = "product";
+          div.innerHTML = `
+            <img src="${product.image}" alt="${product.name}">
+            <h3>${product.name}</h3>
+            <p><strong>الكود:</strong> ${product.code}</p>
+            <p><strong>الشركة:</strong> ${product.brand}</p>
+            <p><strong>السعر:</strong> ₪${product.price}</p>
+            <p><strong>الكمية المتوفرة:</strong> <input type="number" value="${product.stock}" style="width: 80px; padding: 4px; text-align: center;"></p>
+            <input type="number" id="qty-${product.code}" value="6" placeholder="الكمية" style="width: 100%; padding: 6px;"><br>
+            <button onclick="addToCart('${product.code}', '${product.name}', ${product.price}, '${product.brand}')">أضف إلى السلة</button>
+          `;
+          container.appendChild(div);
+        });
+      });
+    }
+
+    function filterProducts() {
+      const query = document.getElementById("searchInput").value.toLowerCase();
+      const filtered = allProducts.filter(p =>
+        p.name.toLowerCase().includes(query) ||
+        p.code.toLowerCase().includes(query)
+      );
+      displayProductsByCategory(filtered);
+    }
+
+    function addToCart(code, name, price, brand) {
+      const qty = parseInt(document.getElementById("qty-" + code).value);
+      if (!qty || qty <= 0) return alert("يرجى إدخال كمية صحيحة.");
+
+      const existing = cart.find(item => item.code === code);
+      if (existing) {
+        existing.quantity += qty;
+      } else {
+        cart.push({ code, name, price, quantity: qty, brand });
+      }
+      updateCart();
+    }
+
+    function removeFromCart(code) {
+      cart = cart.filter(item => item.code !== code);
+      updateCart();
+    }
+
+    function updateCart() {
+      const cartBox = document.getElementById("cart");
+      const cartItems = document.getElementById("cart-items");
+      cartBox.style.display = "block";
+
+      cartItems.innerHTML = "";
+      let subtotal = 0;
+
+      cart.forEach(item => {
+        const lineTotal = item.price * item.quantity;
+        subtotal += lineTotal;
+        cartItems.innerHTML += `<p><button class="remove-btn" onclick="removeFromCart('${item.code}')">✖</button>${item.code} ${item.brand} - ${item.name} - ${item.quantity} × ₪${item.price} = ₪${lineTotal}</p>`;
+      });
+
+      const tax = subtotal * 0.18;
+      const total = subtotal + tax;
+
+      document.getElementById("subtotal").innerText = subtotal.toFixed(2);
+      document.getElementById("tax").innerText = tax.toFixed(2);
+      document.getElementById("total").innerText = total.toFixed(2);
+    }
+
+    function printInvoice() {
+      const originalContent = document.body.innerHTML;
+      const printContent = document.getElementById("cart").innerHTML;
+      const newWindow = window.open("", "", "width=800,height=600");
+      newWindow.document.write(`
+        <html>
+          <head><title>فاتورة</title></head>
+          <body>${printContent}</body>
+        </html>
+      `);
+      newWindow.document.close();
+      newWindow.focus();
+      newWindow.print();
+    }
+
+    function confirmOrder() {
+      if (cart.length === 0) return alert("السلة فارغة!");
+
+      google.script.run.withSuccessHandler(function(response) {
+        alert(response);
+        location.reload();
+      }).submitCart(cart);
+    }
+
+    google.script.run.withSuccessHandler(renderProducts).getProducts();
+  </script>
+</body>
+</html>
