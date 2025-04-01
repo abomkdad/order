@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>صفحة الزبون - طلب المنتجات</title>
+  <style>
+    body { direction: rtl; font-family: Arial; background-color: #f1f1f1; padding: 20px; }
+    .product-box { background: white; border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: space-between; }
+    .product-info { max-width: 70%; }
+    .product-name { font-weight: bold; margin-bottom: 5px; }
+    .product-brand, .product-code, .product-stock { color: #555; font-size: 13px; }
+    input[type='number'] { width: 50px; padding: 5px; border-radius: 6px; border: 1px solid #ccc; }
+    button { background-color: green; color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; }
+    #cartContainer { background: #fff; padding: 15px; margin-top: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+  </style>
+</head>
+<body>
+  <h2>🛒 اطلب منتجاتك الآن</h2>
+  <div id="productsContainer">جاري تحميل المنتجات...</div>
+  <hr>
+  <div id="cartContainer">
+    <h3>🧾 عربة الطلب</h3>
+    <div id="cartList"></div>
+    <p id="totalPrice"></p>
+    <input id="customerName" placeholder="اسم الزبون" />
+    <button onclick="submitCart()">✅ إرسال الطلب</button>
+  </div>
+
+  <script>
+    let products = [];
+    let cart = [];
+
+    function loadProducts(data) {
+      products = data;
+      const container = document.getElementById("productsContainer");
+      container.innerHTML = "";
+      data.forEach(p => {
+        const box = document.createElement("div");
+        box.className = "product-box";
+        box.innerHTML = `
+          <div class="product-info">
+            <div class="product-name">${p.name}</div>
+            <div class="product-brand">${p.brand}</div>
+            <div class="product-code">كود: ${p.code}</div>
+            <div class="product-stock">المتوفر: ${p.stock}</div>
+          </div>
+          <div>
+            <input type="number" value="6" min="1" onchange="updateQty('${p.code}', this.value)" />
+            <button onclick="addToCart('${p.code}')">➕ أضف</button>
+          </div>
+        `;
+        container.appendChild(box);
+      });
+    }
+
+    function updateQty(code, qty) {
+      const product = cart.find(p => p.code === code);
+      if (product) product.quantity = parseInt(qty);
+    }
+
+    function addToCart(code) {
+      const p = products.find(p => p.code === code);
+      if (!p) return;
+      if (cart.find(item => item.code === code)) return alert("المنتج مضاف مسبقًا.");
+      cart.push({ ...p, quantity: 6 });
+      renderCart();
+    }
+
+    function renderCart() {
+      const list = document.getElementById("cartList");
+      list.innerHTML = "";
+      let total = 0;
+      cart.forEach(item => {
+        const line = document.createElement("div");
+        const subtotal = item.quantity * item.price;
+        total += subtotal;
+        line.innerHTML = `${item.name} - ${item.brand} (${item.code}) × ${item.quantity} = ₪${subtotal}`;
+        list.appendChild(line);
+      });
+      document.getElementById("totalPrice").textContent = `المجموع: ₪${total}`;
+    }
+
+    function submitCart() {
+      const name = document.getElementById("customerName").value.trim();
+      if (!name) return alert("يرجى إدخال اسم الزبون");
+      if (cart.length === 0) return alert("عربة التسوق فارغة");
+      google.script.run.withSuccessHandler(msg => {
+        alert(msg);
+        cart = [];
+        renderCart();
+      }).submitCart(cart, name);
+    }
+
+    google.script.run.withSuccessHandler(loadProducts).getProducts();
+  </script>
+</body>
+</html>

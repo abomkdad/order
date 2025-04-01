@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>صفحة تجهيز الطلبات</title>
+  <style>
+    body { direction: rtl; font-family: Arial; background-color: #f9f9f9; padding: 20px; }
+    .order-box { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .order-header { font-weight: bold; margin-bottom: 10px; }
+    .order-item { padding: 8px 0; border-bottom: 1px solid #eee; }
+    .order-item:last-child { border-bottom: none; }
+    .order-actions { margin-top: 15px; }
+    .order-actions button { background: #007bff; color: white; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; margin-left: 10px; }
+    .order-actions button.delete { background: red; }
+    input[type='number'] { width: 50px; text-align: center; padding: 5px; border-radius: 6px; border: 1px solid #ccc; }
+    pre { background: #eee; padding: 10px; border-radius: 8px; margin-top: 20px; font-size: 13px; direction: ltr; text-align: left; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h2>📦 جميع الطلبات الواردة</h2>
+  <div id="ordersContainer">جاري التحميل...</div>
+  <div id="debugData"></div>
+
+  <script>
+    function renderOrders(data) {
+      document.getElementById("debugData").innerHTML = '<h3>📋 البيانات القادمة:</h3><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+
+      const container = document.getElementById("ordersContainer");
+      container.innerHTML = "";
+
+      if (!data || data.length === 0) {
+        container.innerHTML = "<p>🚫 لا توجد بيانات في الجدول.</p>";
+        return;
+      }
+
+      const grouped = {};
+      let hasValidRows = false;
+
+      data.forEach((row, idx) => {
+        const total = row[0];
+        const qty = row[1];
+        const price = row[2];
+        const brand = row[3];
+        const name = row[4];
+        const code = row[5];
+        const customer = row[6];
+        const date = row[7];
+
+        if (!customer || !code || !name || !qty || !price) return;
+
+        const key = customer + " - " + date;
+
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push({ code, name, brand, price, qty });
+        hasValidRows = true;
+      });
+
+      if (!hasValidRows) {
+        container.innerHTML = "<p>🚫 لم يتم العثور على صفوف صالحة للعرض.</p>";
+        return;
+      }
+
+      Object.keys(grouped).forEach(orderKey => {
+        const orderDiv = document.createElement("div");
+        orderDiv.className = "order-box";
+
+        const [customer, date] = orderKey.split(" - ");
+        orderDiv.innerHTML = `<div class='order-header'>👤 ${customer} | 🗓️ ${date}</div>`;
+
+        grouped[orderKey].forEach((item, index) => {
+          const itemDiv = document.createElement("div");
+          itemDiv.className = "order-item";
+          itemDiv.innerHTML = `
+            <strong>${item.name}</strong> - ${item.brand} - الكود: ${item.code}<br>
+            الكمية: <input type='number' value='${item.qty}' onchange='updateQty("${orderKey}", ${index}, this.value)'> × ₪${item.price} = ₪${(item.price * item.qty).toFixed(2)}
+          `;
+          orderDiv.appendChild(itemDiv);
+        });
+
+        const actions = document.createElement("div");
+        actions.className = "order-actions";
+        actions.innerHTML = `
+          <button onclick='markPrepared("${orderKey}")'>✅ تم التجهيز</button>
+          <button class='delete' onclick='deleteOrder("${orderKey}")'>🗑️ حذف</button>
+        `;
+        orderDiv.appendChild(actions);
+        container.appendChild(orderDiv);
+      });
+    }
+
+    function updateQty(orderKey, itemIndex, newQty) {
+      alert(`تم تعديل الكمية للطلب: ${orderKey}, العنصر رقم ${itemIndex} إلى ${newQty}`);
+    }
+
+    function markPrepared(orderKey) {
+      alert(`✅ تم تجهيز الطلب: ${orderKey}`);
+    }
+
+    function deleteOrder(orderKey) {
+      if (confirm("هل أنت متأكد من حذف هذا الطلب؟")) {
+        alert(`🗑️ تم حذف الطلب: ${orderKey}`);
+      }
+    }
+
+    google.script.run.withSuccessHandler(function(data) {
+      renderOrders(data);
+    }).getAllOrders();
+  </script>
+</body>
+</html>
