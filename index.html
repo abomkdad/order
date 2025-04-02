@@ -9,6 +9,11 @@
     #searchInput { width: 300px; padding: 10px; font-size: 16px; border-radius: 8px; border: 1px solid #444; margin-bottom: 20px; display: block; margin-left: auto; margin-right: auto; background-color: #2c2c2c; color: #fff; }
     .order-card { background-color: #2c2c2c; border-radius: 12px; padding: 20px; box-shadow: 0 2px 10px rgba(255,255,255,0.1); margin-bottom: 20px; color: #f5f5f5; }
     .order-card h2 { margin-top: 0; color: #ffcc00; }
+    .branch-name {
+      font-weight: bold;
+      color: #00ffcc; /* يمكنك تغيير اللون */
+      font-size: 1.2em; /* يمكنك تغيير حجم الخط */
+    }
     .order-details { margin-bottom: 15px; }
     .order-details div { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed #555; }
     .order-details div:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
@@ -55,10 +60,10 @@
       const groupedOrders = {};
       rows.forEach(row => {
         const cells = row.c;
-        const date = cells[0]?.f || "";
-        const branch = cells[7]?.v || "";
-        const quantity = parseFloat(cells[4]?.v || 0);
-        const price = parseFloat(cells[5]?.v || 0);
+        const date = cells[0]?.f || ""; // A: التاريخ
+        const branch = cells[8]?.v || ""; // I: الفرع
+        const quantity = parseFloat(cells[3]?.v || 0); // D: الكمية
+        const price = parseFloat(cells[4]?.v || 0); // E: السعر
         const totalWithoutTax = quantity * price;
         const tax = totalWithoutTax * 0.18;
         const totalWithTax = totalWithoutTax + tax;
@@ -68,7 +73,13 @@
           groupedOrders[key] = { date: date, branch: branch, orders: [], totalQuantity: 0, totalWithoutTax: 0, totalTax: 0, totalWithTax: 0 };
         }
 
-        groupedOrders[key].orders.push({ code: cells[1]?.v || "", category: cells[2]?.v || "", type: cells[3]?.v || "", quantity: quantity, price: price, total: cells[6]?.v || "" });
+        groupedOrders[key].orders.push({
+          code: cells[1]?.v || "", // B: الكود
+          category: cells[2]?.v || "", // C: الصنف
+          quantity: quantity,
+          price: price,
+          total: cells[5]?.v || "" // F: مجموع الكمية والسعر
+        });
         groupedOrders[key].totalQuantity += quantity;
         groupedOrders[key].totalWithoutTax += totalWithoutTax;
         groupedOrders[key].totalTax += tax;
@@ -95,7 +106,6 @@
             <div>
               <p><span>الكود:</span> <span style="color: #00ffcc; font-size: 1.1em; font-weight: normal;">${order.code}</span></p>
               <p><span>الصنف:</span> <span style="font-weight: normal;">${order.category}</span></p>
-              <p><span>النوع:</span> <span style="font-weight: normal;">${order.type}</span></p>
               <p><span>الكمية:</span> <span style="color: #ff9900; font-size: 1.1em; font-weight: normal;">${order.quantity}</span></p>
               <p><span>السعر:</span> <span style="font-weight: normal;">₪${order.price}</span></p>
               <p><span>المجموع:</span> <span style="font-weight: normal;">${order.total}</span></p>
@@ -104,7 +114,7 @@
         });
 
         div.innerHTML = `
-          <h2>طلبات فرع ${group.branch} - بتاريخ ${group.date}</h2>
+          <h2>طلبات فرع <span class="branch-name">${group.branch}</span> - بتاريخ ${group.date}</h2>
           <div class="order-details">
             ${ordersHTML}
           </div>
