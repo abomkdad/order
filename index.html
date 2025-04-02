@@ -2,158 +2,105 @@
 <html lang="ar">
 <head>
   <meta charset="UTF-8">
-  <title>عربة التسوق</title>
+  <title>تجهيز الطلبات - كل الطلبات</title>
   <style>
-    body { direction: rtl; font-family: Arial; padding: 20px; background-color: #f0f0f0; }
-    .product { background: #fff; border-radius: 12px; padding: 16px; margin: 10px; width: 250px; display: inline-block; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-    .product img { width: 100%; border-radius: 8px; }
-    .product button { background: green; color: white; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; margin-top: 5px; }
-    #cart { margin-bottom: 30px; background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-    #cart p { margin: 5px 0; }
-    #cart button { background: blue; margin-top: 15px; }
-    #searchBar { margin-bottom: 20px; }
-    #searchInput { width: 100%; padding: 10px; font-size: 16px; border-radius: 8px; border: 1px solid #ccc; }
-    .remove-btn { color: red; background: none; border: none; cursor: pointer; font-size: 16px; margin-right: 10px; }
-    .category-title { font-size: 20px; margin-top: 30px; font-weight: bold; color: #333; }
+    body { font-family: Arial; background-color: #1e1e1e; color: #f5f5f5; direction: rtl; padding: 20px; }
+    h1 { text-align: center; margin-bottom: 30px; color: #fff; }
+    #searchInput { width: 300px; padding: 10px; font-size: 16px; border-radius: 8px; border: 1px solid #444; margin-bottom: 20px; display: block; margin-left: auto; margin-right: auto; background-color: #2c2c2c; color: #fff; }
+    .order-card { background-color: #2c2c2c; border-radius: 12px; padding: 20px; box-shadow: 0 2px 10px rgba(255,255,255,0.1); margin-bottom: 20px; color: #f5f5f5; }
+    .order-card h3 { margin-top: 0; color: #ffcc00; }
+    .order-details { margin-bottom: 10px; }
+    .order-details span { font-weight: bold; color: #ddd; }
+    .totals { margin-top: 10px; border-top: 1px solid #555; padding-top: 10px; }
+    .totals p { margin: 5px 0; }
+    .actions { margin-top: 15px; }
+    .done-btn, .print-btn { padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; margin-left: 10px; }
+    .done-btn { background-color: #4CAF50; color: white; }
+    .print-btn { background-color: #2196F3; color: white; }
   </style>
 </head>
 <body>
-  <div id="searchBar">
-    <input type="text" id="searchInput" placeholder="ابحث عن منتج..." oninput="filterProducts()">
-  </div>
-
-  <div id="cart" style="display:none;">
-    <h3>🧾 الفاتورة:</h3>
-    <div id="cart-items"></div>
-    <p><strong>المجموع بدون ضريبة:</strong> <span id="subtotal">0</span> ₪</p>
-    <p><strong>الضريبة (18%):</strong> <span id="tax">0</span> ₪</p>
-    <p><strong>المجموع الكلي:</strong> <span id="total">0</span> ₪</p>
-    <button onclick="printInvoice()">🖨️ طباعة / تحميل PDF</button>
-    <button onclick="confirmOrder()">✔️ تأكيد الطلب</button>
-  </div>
-
-  <h2>🛒 المنتجات المتوفرة</h2>
-  <div id="products"></div>
+  <h1>📦 صفحة تجهيز الطلبات</h1>
+  <input type="text" id="searchInput" onkeyup="filterOrders()" placeholder="🔍 ابحث عن طلب">
+  <div id="ordersContainer"></div>
 
   <script>
-    let cart = [];
-    let allProducts = [];
+    const sheetId = "1g3_D2NBwT27O2OI-v1R5tAB2QCfF3_ZCUL9sSLoCv54";
+    const sheetName = "الطلبات";
 
-    function renderProducts(products) {
-      allProducts = products;
-      displayProductsByCategory(products);
-    }
+    async function fetchOrders() {
+      const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${sheetName}`;
+      const res = await fetch(url);
+      const text = await res.text();
+      const json = JSON.parse(text.substring(47).slice(0, -2));
+      const rows = json.table.rows;
 
-    function displayProductsByCategory(products) {
-      const container = document.getElementById("products");
+      const container = document.getElementById("ordersContainer");
       container.innerHTML = "";
-      const categories = {};
 
-      products.forEach(product => {
-        if (!categories[product.name]) {
-          categories[product.name] = [];
-        }
-        categories[product.name].push(product);
-      });
+      rows.forEach(row => {
+        const cells = row.c;
+        const quantity = parseFloat(cells[3]?.v || 0); // الكمية = العمود D
+        const price = parseFloat(cells[4]?.v || 0);    // السعر = العمود E
+        const totalWithoutTax = quantity * price;
+        const tax = totalWithoutTax * 0.18;
+        const totalWithTax = totalWithoutTax + tax;
 
-      Object.keys(categories).forEach(category => {
-        const catHeader = document.createElement("div");
-        catHeader.className = "category-title";
-        catHeader.textContent = category;
-        container.appendChild(catHeader);
+        const div = document.createElement("div");
+        div.className = "order-card";
 
-        categories[category].forEach(product => {
-          const div = document.createElement("div");
-          div.className = "product";
-          div.innerHTML = `
-            <img src="${product.image}" alt="${product.name}">
-            <h3>${product.name}</h3>
-            <p><strong>الكود:</strong> ${product.code}</p>
-            <p><strong>الشركة:</strong> ${product.brand}</p>
-            <p><strong>السعر:</strong> ₪${product.price}</p>
-            <p><strong>الكمية المتوفرة:</strong> <input type="number" value="${product.stock}" style="width: 80px; padding: 4px; text-align: center;"></p>
-            <input type="number" id="qty-${product.code}" value="6" placeholder="الكمية" style="width: 100%; padding: 6px;"><br>
-            <button onclick="addToCart('${product.code}', '${product.name}', ${product.price}, '${product.brand}')">أضف إلى السلة</button>
-          `;
-          container.appendChild(div);
-        });
+        div.innerHTML = `
+          <h3>طلب فردي</h3>
+          <div class="order-details">
+            <p><span>📅 التاريخ:</span> ${cells[0]?.f || ""}</p>
+            <p><span>الكود:</span> ${cells[1]?.v || ""}</p>
+            <p><span>المنتج:</span> ${cells[2]?.v || ""}</p>
+            <p><span>الصنف:</span> ${cells[3]?.v || ""}</p>
+            <p><span>الكمية:</span> ${quantity}</p>
+            <p><span>السعر:</span> ₪${price}</p>
+            <p><span>المخزون:</span> ${cells[5]?.v || ""}</p>
+            <p><span>المتبقي:</span> ${cells[6]?.v || ""}</p>
+            <p><span>الفرع:</span> ${cells[7]?.v || ""}</p>
+          </div>
+          <div class="totals">
+            <p><span>📊 المجموع بدون ضريبة:</span> ₪${totalWithoutTax.toFixed(2)}</p>
+            <p><span>💸 الضريبة (18%):</span> ₪${tax.toFixed(2)}</p>
+            <p><span>💰 المجموع مع الضريبة:</span> ₪${totalWithTax.toFixed(2)}</p>
+          </div>
+          <div class="actions">
+            <button class="done-btn" onclick="markAsDone(this)">تم التجهيز</button>
+            <button class="print-btn" onclick="printOrder(this)">🖨️ طباعة</button>
+          </div>
+        `;
+        container.appendChild(div);
       });
     }
 
-    function filterProducts() {
+    function filterOrders() {
       const query = document.getElementById("searchInput").value.toLowerCase();
-      const filtered = allProducts.filter(p =>
-        p.name.toLowerCase().includes(query) ||
-        p.code.toLowerCase().includes(query)
-      );
-      displayProductsByCategory(filtered);
-    }
-
-    function addToCart(code, name, price, brand) {
-      const qty = parseInt(document.getElementById("qty-" + code).value);
-      if (!qty || qty <= 0) return alert("يرجى إدخال كمية صحيحة.");
-
-      const existing = cart.find(item => item.code === code);
-      if (existing) {
-        existing.quantity += qty;
-      } else {
-        cart.push({ code, name, price, quantity: qty, brand });
-      }
-      updateCart();
-    }
-
-    function removeFromCart(code) {
-      cart = cart.filter(item => item.code !== code);
-      updateCart();
-    }
-
-    function updateCart() {
-      const cartBox = document.getElementById("cart");
-      const cartItems = document.getElementById("cart-items");
-      cartBox.style.display = "block";
-
-      cartItems.innerHTML = "";
-      let subtotal = 0;
-
-      cart.forEach(item => {
-        const lineTotal = item.price * item.quantity;
-        subtotal += lineTotal;
-        cartItems.innerHTML += `<p><button class="remove-btn" onclick="removeFromCart('${item.code}')">✖</button>${item.code} ${item.brand} - ${item.name} - ${item.quantity} × ₪${item.price} = ₪${lineTotal}</p>`;
+      const cards = document.querySelectorAll(".order-card");
+      cards.forEach(card => {
+        card.style.display = card.innerText.toLowerCase().includes(query) ? "block" : "none";
       });
-
-      const tax = subtotal * 0.18;
-      const total = subtotal + tax;
-
-      document.getElementById("subtotal").innerText = subtotal.toFixed(2);
-      document.getElementById("tax").innerText = tax.toFixed(2);
-      document.getElementById("total").innerText = total.toFixed(2);
     }
 
-    function printInvoice() {
-      const originalContent = document.body.innerHTML;
-      const printContent = document.getElementById("cart").innerHTML;
-      const newWindow = window.open("", "", "width=800,height=600");
-      newWindow.document.write(`
-        <html>
-          <head><title>فاتورة</title></head>
-          <body>${printContent}</body>
-        </html>
-      `);
-      newWindow.document.close();
-      newWindow.focus();
-      newWindow.print();
+    function markAsDone(button) {
+      button.innerText = "✅ تم";
+      button.style.backgroundColor = "gray";
+      button.disabled = true;
     }
 
-    function confirmOrder() {
-      if (cart.length === 0) return alert("السلة فارغة!");
-
-      google.script.run.withSuccessHandler(function(response) {
-        alert(response);
-        location.reload();
-      }).submitCart(cart);
+    function printOrder(button) {
+      const card = button.closest(".order-card");
+      const printWindow = window.open("", "", "width=800,height=600");
+      printWindow.document.write("<html><head><title>فاتورة</title></head><body style='font-family:Arial;'>");
+      printWindow.document.write(card.innerHTML);
+      printWindow.document.write("</body></html>");
+      printWindow.document.close();
+      printWindow.print();
     }
 
-    google.script.run.withSuccessHandler(renderProducts).getProducts();
+    fetchOrders();
   </script>
 </body>
 </html>
