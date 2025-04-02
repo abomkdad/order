@@ -56,7 +56,7 @@
       rows.forEach(row => {
         const cells = row.c;
         const date = cells[0]?.f || "";
-        const branch = cells[7]?.v || "";
+        const branch = cells[9]?.v || "";
         const quantity = parseFloat(cells[4]?.v || 0);
         const price = parseFloat(cells[5]?.v || 0);
         const totalWithoutTax = quantity * price;
